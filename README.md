@@ -1,26 +1,31 @@
 IUNB
 ====
 
-Imhonet Unread Books
+If you don't speak russian:
 
-For non-Russia user:
+Sorry, but this program exists exclusively for one website with only russian interface. I guess you can still use my code as some example of C++ with socket and GUI (in future). I have done my best so there are english comments in my code.
 
-This program exists exclusively for one website with only russian interface. So, I guess, the only purpose of this project for you - C++ with socket and GUI (in future) example.
+In previous version program was windows-only and used WinSock. Now this is boost::tcp and you can find this library here - http://www.boost.org/. 
 
 Цель программы - получить с сайта imhonet книги из списка "Лучшие", но исключая уже прочитанные.
 
-Использование предельно простое. 
+Как запустить:
 
-1. Вводите пароль, логин, имя файла.
-2. Имя файла без расширения, в нём будет сохраняться список непрочитанного рядом с программой, а после откроется в браузере по умолчанию.
-3. Рядом с программой должен лежать файл iunb.xml - там настройки.
-4. Всего для работы два файла - IUNB.exe и iunb.xml. 
-5. А также установленные библиотеки http://www.microsoft.com/ru-ru/download/details.aspx?id=30679 , они как правило уже установлены.
+1. Скачать в релизах архив Executable.zip
+2. Распаковать и запутсть exe.
+3. Иногда требуется установить http://www.microsoft.com/ru-ru/download/details.aspx?id=30679
+
+
+Как использовать:
+
+1. Ввести пароль, логин Имхонета.
+2. Подождать, пока программа обрабатывает данные с сайта.
+3. Список первых 10 непрочитанных будет сохранён в файле unread.html рядом с программой.
+4. Его можно открыть в любом браузере.
 
 ToDo
 
 1. Графический интерфейс.
-2. Кроссплатформенность.
 3. Возможность добавлять книги в списки: Прочитанное, Чёрный, Позже.
 3.А. Эти списки будут храниться на компьютере пользователя.
-3.Б. Книги из этих списковы не будут показываться в программе.
+3.Б. Книги из этих списков не будут показываться в программе.

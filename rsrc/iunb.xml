@@ -1,22 +1,29 @@
-<addr>imhonet.ru</addr>
-<port>80</port>
-<get_auth>POST /ajax.php?log=Authorize HTTP/1.1
+<pref>
+	<site>
+		<addr>imhonet.ru</addr>
+		<port>80</port>
+	</site>
+	<auth>
+		<GET>POST /ajax.php?log=Authorize HTTP/1.1
 Host: imhonet.ru
 Content-Type: application/x-www-form-urlencoded
 X-Requested-With: XMLHttpRequest
 Content-Length: $Content-Length
 
-</get_auth>
-<post_auth>action=Authorize&forever=1&login=$login&password=$password</post_auth>
-<cookie>Cookie: </cookie>
-<unread_num>10</unread_num>
-<start_page>1</start_page>
-<get_unread>GET /rating/rated/?page=$pagenumber HTTP/1.1
+</GET>
+		<POST>action=Authorize&forever=1&login=$login&password=$password</POST>
+		<cookie>Cookie:</cookie>
+		<user_id>_user_id=</user_id>
+		<user_hash>_user_hash=</user_hash>
+		<PHPSID>PHPSESSID=</PHPSID>
+	</auth>
+	<unread>
+		<GET>GET /rating/rated/?page=$pagenumber HTTP/1.1
 Host: books.imhonet.ru
 $Cookie
 
-</get_unread>
-<max_tcp>65535</max_tcp>
-<user_id>_user_id=</user_id>
-<user_hash>_user_hash=</user_hash>
-<PHPSID>PHPSESSID=</PHPSID>
+</GET>
+		<num>10</num>
+		<start_page>1</start_page>
+	</unread>
+</pref>
