@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>log_pass</class>
+ <widget class="QDialog" name="log_pass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>290</width>
+    <height>67</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Authorize</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QLineEdit" name="Login"/>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="Password"/>
+   </item>
+   <item row="1" column="0" colspan="2">
+    <widget class="QPushButton" name="Ok_Button">
+     <property name="text">
+      <string>Authorize (anonym if empty)</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>Ok_Button</sender>
+   <signal>clicked()</signal>
+   <receiver>log_pass</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>18</x>
+     <y>232</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>219</x>
+     <y>264</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

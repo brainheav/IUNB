@@ -12,7 +12,6 @@ Content-Length: $Content-Length
 
 </GET>
 		<POST>action=Authorize&forever=1&login=$login&password=$password</POST>
-		<cookie>Cookie:</cookie>
 		<user_id>_user_id=</user_id>
 		<user_hash>_user_hash=</user_hash>
 		<PHPSID>PHPSESSID=</PHPSID>
@@ -26,4 +25,14 @@ $Cookie
 		<num>10</num>
 		<start_page>1</start_page>
 	</unread>
+	<book_info>
+		<GET_descr>GET /element/$id/ HTTP/1.1
+Host: books.imhonet.ru
+
+</GET_descr>
+		<GET_comm>GET /element/$id/opinions/?sort_by=rating&flt_users=all HTTP/1.1
+Host: books.imhonet.ru
+
+</GET_comm>
+	</book_info>
 </pref>

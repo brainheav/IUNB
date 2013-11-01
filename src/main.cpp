@@ -1,18 +1,28 @@
-#include <iostream>
-#include <fstream>
 #include "iunb.h"
-int main() try
-{
-    std::string login;		std::cout << "Login: ";		std::cin >> login;
-    std::string password;	std::cout << "Password: ";	std::cin >> password;
+#include <QApplication>
+#include <QMessageBox>
 
-    IUNB my(login, password, "iunb.xml");
-    std::string result = my.get_unread();
-    std::ofstream file("unread.html", std::ios::trunc);
-    file.write(result.data(), result.size());
-    return 0;
-}
-catch (std::exception & exc)
+int main(int argc, char *argv[])
 {
-    std::cout << '\n' << exc.what() << '\n';
+    bool con = true;
+    while (con)
+    {
+        con = false;
+
+        QApplication a(argc, argv);
+        IUNB window;
+        window.show();
+
+        try
+        {
+            return a.exec();
+        }
+        catch (std::exception & ref)
+        {
+            QMessageBox::critical(nullptr, "App will be reloaded",
+                                  ref.what());
+            con = true;
+        }
+    }
 }
+

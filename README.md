@@ -3,29 +3,31 @@ IUNB
 
 If you don't speak russian:
 
-Sorry, but this program exists exclusively for one website with only russian interface. I guess you can still use my code as some example of C++ with socket and GUI (in future). I have done my best so there are english comments in my code.
+Sorry, but this program exists exclusively for one website with only russian interface. I guess you can still use my code as some example of C++ with socket and GUI. I have done my best so there are english comments in my code.
 
-In previous version program was windows-only and used WinSock. Now this is boost::tcp and you can find this library here - http://www.boost.org/. 
+I use this libraries:
+
+Qt - http://qt-project.org/
+
+boost::tcp - http://www.boost.org/
+
 
 Цель программы - получить с сайта imhonet книги из списка "Лучшие", но исключая уже прочитанные.
 
 Как запустить:
 
-1. Скачать в релизах архив Executable.zip
-2. Распаковать и запутсть exe.
+1. Скачать в релизах архив c IUNB-X.X.X.EXE.(zip|7z)
+2. Распаковать и запустить exe.
 3. Иногда требуется установить http://www.microsoft.com/ru-ru/download/details.aspx?id=30679
 
 
 Как использовать:
 
-1. Ввести пароль, логин Имхонета.
-2. Подождать, пока программа обрабатывает данные с сайта.
-3. Список первых 10 непрочитанных будет сохранён в файле unread.html рядом с программой.
-4. Его можно открыть в любом браузере.
+1. Нажать на кнопку Authorize, если хотите получить список книг, исключая те, которые с оценками или использовать настройки из файла ваш_ник.pref.xml. Пока возможно только ручное редактирование этого файла, позже появится возможность делать это в программе. Без авторизации используется .pref.xml. Это возможно запомнить пароль и логин, если заменить $login и $password в файле настроек, упомянутом выше.
+2. Нажать на кнопку Get Unread. В колонку слева начнут добавляться записи, которыми можно пользоваться сразу, как только появилось хотя бы одно, так как программа работает в несколько потоков.
+3. Кликайте по интересующему названию и программа загрузит данные с сайта - описание и лучшие комментарии. Это возможно, не дожидааясь загрузки текущего элемента, перейти к следующему.
 
 ToDo
 
-1. Графический интерфейс.
-3. Возможность добавлять книги в списки: Прочитанное, Чёрный, Позже.
-3.А. Эти списки будут храниться на компьютере пользователя.
-3.Б. Книги из этих списков не будут показываться в программе.
+1. Возможность добавлять книги в списки, хранящиеся на компьютере. Например такие, как "Чёрный список"
+2. Возможность менять настройки в самой программе, и, собственно, больше настроек.
