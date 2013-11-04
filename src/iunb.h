@@ -1,72 +1,95 @@
 #ifndef IUNB_H
 #define IUNB_H
 
+// Headers
+///////////////////////////////////////////////////////////////////////////////
+
 #include <QMainWindow>
 
+// Qt MOC conflicts with boost
 #ifndef Q_MOC_RUN
 
+// Network:
 #include <boost/asio.hpp>
+
+// Application preferences
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
 #endif // Q_MOC_RUN
 
+// Holds exception from worker threads in list<future<void>>
 #include <future>
+// QListWidgetItem has QVariant with shared_ptr
+// that contains some info about book
 #include <memory>
+
+// !Headers
+///////////////////////////////////////////////////////////////////////////////
+
+
+// Forward declarations
+///////////////////////////////////////////////////////////////////////////////
 
 class QListWidgetItem;
 
-namespace Ui {
-class IUNB;
+// !Forward declarations
+///////////////////////////////////////////////////////////////////////////////
+
+namespace Ui
+{
+    class IUNB;
 }
 
 class IUNB : public QMainWindow
 {
     Q_OBJECT
 public:
-    // User-role data in QListWidgetItem
+    // Qt::UserRole data in QListWidgetItem's QVariant
     struct item_info
     {
     public:
         item_info(unsigned long long in_id):id(in_id){}
     public:
-        // Inf about book from server
+        // Book's description and best comments from server
         QString str;
-        // id of book
+        // Book's id
         unsigned long long id;
     }; // !struct item_info
 
-    //
+    // QVariant likes to copy everything everytime
+    // but I - don't
     typedef std::shared_ptr<item_info> pit_inf;
 
 private:
-    // All settings files are made from this string
+    // All configuration file's names are made from this string
     std::string username;
 
-    // Needed for BOOST IO operations
+    // Needed for boost IO operations
     boost::asio::io_service io_service;
 
-    // Saving pref from XML
+    // Stores preferences from $username.pref.xml
     boost::property_tree::ptree xml_pref;
 
-    // Save auth across function call
+    // Stores auth
     std::string cookie;
 
-    // Hold exception from worker threads, if any
+    // Holds exception from worker threads, if any
+    // also I can wait for threads to finish
     std::list<std::future<void>> tasks_list;
 
-    // Interface
+    //
     Ui::IUNB *ui;
 
 private:
-    // Waiting for finising other threads
+    // Wait for threads to finish
     // This makes possible to change settings, cookie, etc without reload
     void wait_for_tasks();
 
     // Load settings or create default
     void load_settings();
 
-    // Connect, send auth inf, save parsed reply to cookie to be auth.
+    // Connect, send auth info, save parsed reply to cookie to be auth.
     void authorize (const std::string &login,
                     const std::string &password);
 
@@ -75,17 +98,17 @@ private:
                           const std::string &password);
 
     // Waiting either 1 second or until socket buffer is full
-    // and return aize of available bytes
-    static size_t wait_for_reply (const boost::asio::ip::tcp::socket & socket);
+    // and return size of available bytes
+    static size_t wait_for_reply (const boost::asio::ip::tcp::socket &socket);
 
-    // Add to *out_str cookie sequence from src,
-    // that begin with beg_req
-    static void add_cookie(std::string & out_str,
-                           const std::string & src,
-                           const std::string & beg_req);
+    // Add to out_str cookie sequence from src,
+    // that begins with beg_req and end with ';'
+    static void add_cookie(std::string &out_str,
+                           const std::string &src,
+                           const std::string &beg_req);
 
     // Send GET with cookie
-    // GET reply and parse it for unread books
+    // Get reply and parse it for unread books
     // Repeat until count(unread books) < num from xml settings
     void get_unread();
 
@@ -93,28 +116,27 @@ private:
     void async_get_unread();
 
     // Parse string for unread books
-    void parse_for_unread(const std::string & src, size_t beg_search,
-                          size_t & out_count);
+    void parse_for_unread(const std::string &src, size_t beg_search,
+                          size_t &out_count);
 
-    // Get info (description, comments)
+    // Get book's description and best comments
     void get_book_info(QListWidgetItem *item);
 
     // Run get_book_info() asynchronously
     void async_get_book_info(QListWidgetItem *item);
 
-    // Parse description
-    bool parse_for_descr(std::string & out_src, size_t beg_serch);
+    // Get book's description from reply
+    bool parse_for_descr(std::string &out_src, size_t beg_serch);
 
-    // Append to string html node
-    // include tag if with == true
+    // Append to string html node with tag if "with" == true
     static std::string &add_by_tag(const std::string &src,
                                    std::string &out_str,
                                    std::string o_tag, size_t &in_beg_pos,
                                    bool with);
 
-    // Parse comments
+    // Get book's best comments from reply
     void parse_for_comm(const std::string &src,
-                               std::string &out_str);
+                        std::string &out_str);
 
 public:
     //
@@ -126,29 +148,32 @@ signals:
     // Signal to change status in status bar
     void status_prepared(QString status);
     // Signal to add unread book in list widget
-    void book_found (QListWidgetItem * item);
-    // Signal to change cookie to new
+    void book_found (QListWidgetItem *item);
+    // Signal to update cookie
     void cookie_updated(QByteArray new_cookie);
-    // Slot to update book info
-    void book_info_updated(QListWidgetItem * item);
+    // Signal to display new info about book
+    void book_info_updated(QListWidgetItem *item);
 
 private slots:
     // Authorize Action
     void on_A_Authorize_triggered();
     // Get Unread Action
     void on_A_Get_Unread_triggered();
-    // Load info about book in item
+    // Load item's book best comments and description
     void on_W_unread_list_itemClicked(QListWidgetItem *item);
-    // Show message in status bar and write to log
+    // Update status bar and log to file
     void on_IUNB_status_prepared(QString status);
-    // Log message from status bar
+    // Add book to list widget
     void on_IUNB_book_found(QListWidgetItem *item);
     // Update cookie
     void on_IUNB_cookie_updated(QByteArray new_cookie);
-    // Update book_info
-    void on_IUNB_book_info_updated(QListWidgetItem * item);
+    // Update book's info
+    void on_IUNB_book_info_updated(QListWidgetItem *item);
 };
 
+// QVariant is too proud of himself to be really Variant
+// so this allows QVariant to contain shared_ptr
+// to struct with book's id, description and best comments
 Q_DECLARE_METATYPE(std::shared_ptr<IUNB::item_info>)
 
 #endif // IUNB_H

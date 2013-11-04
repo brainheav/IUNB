@@ -1,27 +1,38 @@
+// Headers
+///////////////////////////////////////////////////////////////////////////////
+
+// Main user interface
 #include "iunb.h"
 #include "ui_iunb.h"
 
+// Login and password dialog interface
 #include "log_pass.h"
 #include "ui_log_pass.h"
 
-#include <QFileDialog>
-
+// Replace algorithm
 #include <boost/algorithm/string.hpp>
 
+// Load\save settings, lists, etc.
 #include <fstream>
+
+// !Headers
+///////////////////////////////////////////////////////////////////////////////
+
 
 // IUNB Private functions
 ///////////////////////////////////////////////////////////////////////////////
 
-// Waiting for finising other threads
+// Wait for threads to finish
 // This makes possible to change settings, cookie, etc without reload
 void IUNB::wait_for_tasks()
 {
     //
-    emit status_prepared("General: Waiting untill tasks finished, stand by");
+    emit status_prepared("General: Waiting until tasks finished, stand by");
+
+    // Display exception what() in status bar, if any
     while (tasks_list.size())
     {
-        tasks_list.remove_if([this](std::future<void> & ref)
+        tasks_list.remove_if([this](std::future<void> &ref)
         {
             if (ref.wait_for(std::chrono::seconds(0))!=std::future_status::timeout)
             {
@@ -29,7 +40,7 @@ void IUNB::wait_for_tasks()
                 {
                     ref.get();
                 }
-                catch (std::exception & ref)
+                catch (std::exception &ref)
                 {
                     emit status_prepared(QString("Fail: ").append(ref.what()));
                 }
@@ -42,6 +53,9 @@ void IUNB::wait_for_tasks()
             return false;
         });
     }
+
+    //
+    emit status_prepared("General: Tasks finished");
 } // !void IUNB::wait_for_tasks()
 
 // Load settings or create default
@@ -62,7 +76,7 @@ void IUNB::load_settings()
     catch (boost::property_tree::xml_parser_error &)
     {
         //
-        emit status_prepared("XML: File not found, creating default ");
+        emit status_prepared("XML: File not found, create default ");
         //
         std::ifstream deffile("./rsrc/.pref.xml");
         std::ofstream userfile(xml_filename);
@@ -70,11 +84,16 @@ void IUNB::load_settings()
         //
         deffile.close(); userfile.close();
         //
+
+        //
+        emit status_prepared("XML: Default file created ");
         boost::property_tree::read_xml(xml_filename, xml_pref);
     }
+    //
+    emit status_prepared("XML: Loaded");
 } // !void IUNB::load_settings()
 
-// Connect, send auth inf, save parsed reply to cookie to be auth.
+// Connect, send auth info, save parsed reply to cookie to be auth.
 void IUNB::authorize(const std::string &login, const std::string &password)
 {
     //
@@ -87,12 +106,12 @@ void IUNB::authorize(const std::string &login, const std::string &password)
     boost::replace_first(post_req, "$password", password);
 
     // Get from XML GET request
-    // and replace $Content-Length with size of post request, if any
+    // and replace $Content-Length with size of post request
     std::string get_req = xml_pref.get<std::string>("pref.auth.GET");
     boost::replace_first(get_req, "$Content-Length",
                          std::to_string(post_req.size()));
 
-    // Add to GET POST data
+    // Add POST to GET
     get_req+=post_req;
 
     //
@@ -109,7 +128,7 @@ void IUNB::authorize(const std::string &login, const std::string &password)
     boost::asio::connect(socket,resolver.resolve(query));
     // Send GET request with POST data from above
     boost::asio::write(socket, boost::asio::buffer(get_req));
-    // Size of this string will be equal to size of data in socket buffer
+    // Size of this string will be equal to bytes in socket
     std::string reply(wait_for_reply(socket), '\0');
     // Get reply from server with user id, user hash and phpsid
     boost::asio::read(socket, boost::asio::buffer(&reply[0], reply.size()));
@@ -130,10 +149,10 @@ void IUNB::authorize(const std::string &login, const std::string &password)
                xml_pref.get<std::string>("pref.auth.PHPSID"));
 
     //
-    emit cookie_updated(QByteArray(new_cookie.c_str(), new_cookie.size()));
-    //
-    emit status_prepared("Authorize: OK");
+    emit status_prepared("Authorize: Parsed");
 
+    //
+    emit cookie_updated(QByteArray(new_cookie.c_str(), new_cookie.size()));
 } // !void IUNB::authorize(...)
 
 // Run authorize (...) asynchronously
@@ -145,8 +164,8 @@ void IUNB::async_authorize(const std::string &login,
 } // !void IUNB::async_authorize(...)
 
 // Waiting either 1 second or until socket buffer is full
-// and return aize of available bytes
-size_t IUNB::wait_for_reply(const boost::asio::ip::tcp::socket & socket)
+// and return size of available bytes
+size_t IUNB::wait_for_reply(const boost::asio::ip::tcp::socket &socket)
 {
     boost::asio::ip::tcp::socket::receive_buffer_size buf_size;
     socket.get_option(buf_size);
@@ -164,8 +183,8 @@ size_t IUNB::wait_for_reply(const boost::asio::ip::tcp::socket & socket)
     return size;
 } // !size_t IUNB::wait_for_reply(...)
 
-// Add to *out_str cookie sequence from src,
-// that begin with beg_req
+// Add to out_str cookie sequence from src,
+// that begins with beg_req and end with ';'
 void IUNB::add_cookie(std::string &out_str, const std::string &src,
                       const std::string &beg_req)
 {
@@ -182,7 +201,7 @@ void IUNB::add_cookie(std::string &out_str, const std::string &src,
 } // !void IUNB::add_cookie(...)
 
 // Send GET with cookie
-// GET reply and parse it for unread books
+// Get reply and parse it for unread books
 // Repeat until count(unread books) < num from xml settings
 void IUNB::get_unread()
 {
@@ -260,8 +279,8 @@ void IUNB::get_unread()
             // Have I received any?
             if (offs!=prev_offs) prev_offs=offs;
             else break;
-        }// !while (size=wait_for_reply(socket))
-    }// !for (size_t count(0); count < num;)
+        }// !while (...)
+    }// !for (...)
 
 } // !void IUNB::get_unread()
 
@@ -274,16 +293,16 @@ void IUNB::async_get_unread()
 
 // Parse string for unread books
 void IUNB::parse_for_unread(const std::string &src,
-                                  size_t beg_search,
-                                  size_t &out_count)
+                            size_t beg_search,
+                            size_t &out_count)
 {
     //
     auto beg_pos = src.npos;
     auto end_pos = src.npos;
-
-    QListWidgetItem * item;
+    //
+    QListWidgetItem *item;
     std::shared_ptr<item_info> it_inf;
-
+    //
     unsigned long long id;
 
      for (  auto unread_book_pos = src.find("data-rate=\"\"", beg_search);
@@ -319,7 +338,7 @@ void IUNB::parse_for_unread(const std::string &src,
 
 } // !void IUNB::parse_for_unread(...)
 
-// Get info (description, comments)
+// Get book's description and best comments
 void IUNB::get_book_info(QListWidgetItem *item)
 {
     // Item_info inside item
@@ -388,7 +407,7 @@ void IUNB::get_book_info(QListWidgetItem *item)
                     break;
                 }
             }
-        }// !while (size=wait_for_reply(socket))
+        }// !while (...)
 
     })); // !Get description
 
@@ -466,12 +485,11 @@ void IUNB::get_book_info(QListWidgetItem *item)
 void IUNB::async_get_book_info(QListWidgetItem *item)
 {
     tasks_list.emplace_back(std::async(std::launch::async,
-                                       &IUNB::get_book_info, this,
-                                       item));
+                                       &IUNB::get_book_info, this, item));
 } // !void IUNB::async_get_book_info()
 
-// Parse description
-bool IUNB::parse_for_descr(std::string & out_src, size_t beg_serch)
+// Get book's description from reply
+bool IUNB::parse_for_descr(std::string &out_src, size_t beg_serch)
 {
     // All the necessary information is found
     auto end_pos = out_src
@@ -506,8 +524,7 @@ bool IUNB::parse_for_descr(std::string & out_src, size_t beg_serch)
     out_src = std::move(temp); return true;
 } // !bool IUNB::parse_for_descr(...)
 
-// Append to string html node
-// include tag if with == true
+// Append to string html node with tag if "with" == true
 std::string &IUNB::add_by_tag(const std::string &src, std::string &out_str,
                               std::string o_tag, size_t &in_beg_pos,
                               bool with)
@@ -523,7 +540,7 @@ std::string &IUNB::add_by_tag(const std::string &src, std::string &out_str,
     // <tag -> </tag>
     c_tag.insert(1,1, '/')+='>';
 
-    // Find right position of close tag
+    // Find correct position of close tag
     auto end_pos = beg_pos;
     for (size_t count(1); count; )
     {
@@ -556,12 +573,12 @@ std::string &IUNB::add_by_tag(const std::string &src, std::string &out_str,
         beg_pos = src.find('>', beg_pos);
         out_str.append(src, ++beg_pos, end_pos - beg_pos);
     }
-
+    //
     in_beg_pos = end_pos;
     return out_str;
 } // !std::string &IUNB::add_by_tag(...)
 
-// Parse comments
+// Get book's best comments from reply
 void IUNB::parse_for_comm(const std::string &src, std::string &out_str)
 {
 
@@ -681,7 +698,7 @@ void IUNB::on_IUNB_status_prepared(QString status)
     ui->SB_status->showMessage(status);
 } // !void IUNB::on_IUNB_status_prepared(...)
 
-// Add unread book in list widget
+// Add book to list widget
 void IUNB::on_IUNB_book_found(QListWidgetItem *item)
 {
     //
@@ -702,7 +719,7 @@ void IUNB::on_IUNB_cookie_updated(QByteArray new_cookie)
     emit status_prepared("Cookie: Updated");
 } // !void IUNB::on_IUNB_cookie_updated(...)
 
-// Update book_info
+// Update book's info
 void IUNB::on_IUNB_book_info_updated(QListWidgetItem *item)
 {
     // Load new info only if it is current item
