@@ -383,7 +383,7 @@ void IUNB::get_book_info(QListWidgetItem *item)
                 {
                     // So clear string
                     // then this allow to reload description
-                    // becouse empty means never loaded before
+                    // because empty means never loaded before
                     descr.clear();
                     break;
                 }
@@ -443,8 +443,15 @@ void IUNB::get_book_info(QListWidgetItem *item)
     // Waiting...
     descr_task.wait(); comm_task.wait();
 
+    //
+    if (descr.size())
+    {
+        descr+="<a href=\"http://books.imhonet.ru/element/";
+        descr+=id;
+        descr+="\">Посмотреть книгу на сайте</a>";
+        descr+=comm;
+    }
     // Set item_info string
-    descr+=comm;
     it_inf->str = QString::fromUtf8(descr.c_str(), descr.size());
 
     // Display received
