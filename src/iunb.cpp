@@ -12,9 +12,6 @@
 // Replace algorithm
 #include <boost/algorithm/string.hpp>
 
-// Load\save settings, lists, etc.
-#include <fstream>
-
 // !Headers
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -91,7 +88,108 @@ void IUNB::load_settings()
     }
     //
     emit status_prepared("XML: Loaded");
+
+    // Load exclude lists
+    load_lists();
 } // !void IUNB::load_settings()
+
+void IUNB::load_lists()
+{
+    //
+    emit status_prepared("Exclude lists: Loading");
+    // Load lists file
+    std::string all_lists_filename("./rsrc/lists/");
+    all_lists_filename+=username+".lists.txt";
+    std::ifstream all_lists_file(all_lists_filename);
+
+    // Create default if this doesn't exist
+    if (!all_lists_file.is_open())
+    {
+        //
+        emit status_prepared("Exclude lists: File not found, creating default");
+        //
+        all_lists_file.close();
+        all_lists_file.clear();
+        //
+        std::ifstream deffile("./rsrc/lists/.lists.txt");
+        std::ofstream userfile(all_lists_filename);
+        userfile << deffile.rdbuf();
+        //
+        deffile.close(); userfile.close();
+        //
+        all_lists_file.open(all_lists_filename);
+        //
+        emit status_prepared("Exclude lists: Default file created");
+    }
+
+    // Refresh QAction in QActionGroup excl_lists
+    if (excl_lists) delete excl_lists;
+    excl_lists = new QActionGroup(this);
+    connect(excl_lists, SIGNAL(triggered(QAction*)),
+            this, SLOT(add_exclude_book(QAction*)));
+    // and clear old lists
+    excl_id.clear();
+    new_excl_id.clear();
+
+    // Related to exclude list file QAction
+    QAction * pQA;
+    // and shared_ptr to this file
+    pofstr shp_ofstr;
+    // Filename of this file
+    std::string list_filename;
+    // Name of this action
+    std::string list_name;
+
+    // Used to load id from exclude file into excl_id set
+    std::ifstream list_file;
+    unsigned long long book_id;
+
+    // Add action to every file in ...lists.txt
+    while (all_lists_file)
+    {
+        // Get list's filename
+        getline(all_lists_file, list_filename, ';');
+        boost::replace_first(list_filename, "$username", username);
+        // Get list's name - action's text
+        getline(all_lists_file, list_name);
+        // if (end)
+        if (!all_lists_file) break;
+
+        // Load book id from exclude lists
+        list_file.open(list_filename);
+        while (list_file)
+        {
+            list_file >> book_id;
+            excl_id.emplace(book_id);
+            list_file.ignore(INTMAX_MAX, '\n');
+        }
+        list_file.close();
+        list_file.clear();
+
+        // Create action and display
+        pQA = new QAction(list_name.c_str(), excl_lists);
+        shp_ofstr.reset(new std::ofstream(list_filename, std::ios::app));
+        pQA->setData(QVariant::fromValue(shp_ofstr));
+        ui->TB_main->addAction(pQA);
+    }
+
+    //
+    emit status_prepared("Exclude lists: Loaded");
+} // !void IUNB::load_lists()
+
+//Unload new exclude book's id
+void IUNB::unload_new_excl_id()
+{
+    //
+    wait_for_tasks();
+
+    for (auto i : new_excl_id)
+    {
+        excl_id.emplace(i);
+    }
+
+    new_excl_id.clear();
+} // !void IUNB::unload_new_excl_id()
 
 // Connect, send auth info, save parsed reply to cookie to be auth.
 void IUNB::authorize(const std::string &login, const std::string &password)
@@ -316,6 +414,9 @@ void IUNB::parse_for_unread(const std::string &src,
          // Get book id
          while (!isdigit(src[++beg_pos]));
          id = strtoul(src.c_str()+beg_pos, 0, 10);
+
+         // Is this a book from exclude lists?
+         if (excl_id.count(id)) continue;
 
          // Get book name
          beg_pos = src.find('>', beg_pos);
@@ -625,9 +726,11 @@ void IUNB::parse_for_comm(const std::string &src, std::string &out_str)
 
 //
 IUNB::IUNB(QWidget *parent) :
-    QMainWindow(parent)
+    QMainWindow(parent),
+    ui(new Ui::IUNB),
+    excl_lists(nullptr)
 {
-    ui = new Ui::IUNB;
+
     ui->setupUi(this);
 } // !IUNB::IUNB(...)
 
@@ -661,8 +764,10 @@ void IUNB::on_A_Authorize_triggered()
 // Get Unread Action
 void IUNB::on_A_Get_Unread_triggered()
 {
-    //
+    // Load settings if not yet
     if (xml_pref.empty()) load_settings();
+    // Unload new exclude book's id, if any
+    if (new_excl_id.size()) unload_new_excl_id();
     //
     ui->W_unread_list->clear();
     //
@@ -729,7 +834,30 @@ void IUNB::on_IUNB_book_info_updated(QListWidgetItem *item)
         pit_inf it_inf = item->data(Qt::UserRole).value<pit_inf>();
         ui->TB_book_info->setText(it_inf->str);
     }
-} // !void IUNB::on_IUNB_book_info_updated()
+} // !void IUNB::on_IUNB_book_info_updated(...)
+
+// Add book to exclude list
+void IUNB::add_exclude_book(QAction *action)
+{
+    // Exclude file list related to this action
+    pofstr shp_ofstr = action->data().value<pofstr>();
+    // List with selected items, if any
+    auto sel_items = ui->W_unread_list->selectedItems();
+    //
+    unsigned long long id;
+    // Add to related exclude list new book id and delete book from list widget
+    for (QListWidgetItem * i : sel_items)
+    {
+        id = i->data(Qt::UserRole).value<pit_inf>()->id;
+       *shp_ofstr << id
+                  << ';'
+                  << i->text().toStdString()
+                  << std::endl;
+        new_excl_id.emplace(id);
+        delete i;
+    }
+
+} // !void IUNB::add_ecxlude_book(...)
 
 // !IUNB Slots
 ///////////////////////////////////////////////////////////////////////////////

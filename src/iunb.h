@@ -23,6 +23,10 @@
 // QListWidgetItem has QVariant with shared_ptr
 // that contains some info about book
 #include <memory>
+// Load\save settings, lists, etc.
+#include <fstream>
+// Stores book's id to exclude
+#include <unordered_set>
 
 // !Headers
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,6 +36,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 class QListWidgetItem;
+class QActionGroup;
 
 // !Forward declarations
 ///////////////////////////////////////////////////////////////////////////////
@@ -60,6 +65,7 @@ public:
     // QVariant likes to copy everything everytime
     // but I - don't
     typedef std::shared_ptr<item_info> pit_inf;
+    typedef std::shared_ptr<std::ofstream> pofstr;
 
 private:
     // All configuration file's names are made from this string
@@ -78,6 +84,16 @@ private:
     // also I can wait for threads to finish
     std::list<std::future<void>> tasks_list;
 
+    // Stores book's id to exclude
+    std::unordered_set<unsigned long long> excl_id;
+
+    // Stores new book's id to exclude
+    // unloads to main (excl_id) list when necessary
+    std::unordered_set<unsigned long long> new_excl_id;
+
+    // Actions related to exclude lists
+    QActionGroup * excl_lists;
+
     //
     Ui::IUNB *ui;
 
@@ -88,6 +104,12 @@ private:
 
     // Load settings or create default
     void load_settings();
+
+    // Load exclude lists
+    void load_lists();
+
+    //Unload new exclude book's id
+    void unload_new_excl_id();
 
     // Connect, send auth info, save parsed reply to cookie to be auth.
     void authorize (const std::string &login,
@@ -169,11 +191,14 @@ private slots:
     void on_IUNB_cookie_updated(QByteArray new_cookie);
     // Update book's info
     void on_IUNB_book_info_updated(QListWidgetItem *item);
+    // Add book to exclude list
+    void add_exclude_book (QAction *action);
 };
 
 // QVariant is too proud of himself to be really Variant
 // so this allows QVariant to contain shared_ptr
 // to struct with book's id, description and best comments
-Q_DECLARE_METATYPE(std::shared_ptr<IUNB::item_info>)
+Q_DECLARE_METATYPE(IUNB::pit_inf)
+Q_DECLARE_METATYPE(IUNB::pofstr)
 
 #endif // IUNB_H

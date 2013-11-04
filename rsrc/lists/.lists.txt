@@ -1,0 +1,3 @@
+./rsrc/lists/$username.never.list.txt;Never
+./rsrc/lists/$username.later.list.txt;Later
+./rsrc/lists/$username.readed.list.txt;Readed
