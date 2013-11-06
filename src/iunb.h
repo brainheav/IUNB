@@ -56,7 +56,7 @@ public:
     public:
         item_info(unsigned long long in_id):id(in_id){}
     public:
-        // Book's description and best comments from server
+        // Book's description
         QString str;
         // Book's id
         unsigned long long id;
@@ -141,25 +141,21 @@ private:
     void parse_for_unread(const std::string &src, size_t beg_search,
                           size_t &out_count);
 
-    // Get book's description and best comments
+    // Get book's description
     void get_book_info(QListWidgetItem *item);
 
     // Run get_book_info() asynchronously
     void async_get_book_info(QListWidgetItem *item);
 
     // Get book's description from reply
-    bool parse_for_descr(std::string &out_src, size_t beg_serch);
+    bool parse_for_descr(const std::string &src, std::string &out_src,
+                         size_t beg_serch);
 
     // Append to string html node with tag if "with" == true
     static std::string &add_by_tag(const std::string &src,
                                    std::string &out_str,
                                    std::string o_tag, size_t &in_beg_pos,
                                    bool with);
-
-    // Get book's best comments from reply
-    void parse_for_comm(const std::string &src,
-                        std::string &out_str);
-
 public:
     //
     explicit IUNB(QWidget *parent = 0);
@@ -181,7 +177,7 @@ private slots:
     void on_A_Authorize_triggered();
     // Get Unread Action
     void on_A_Get_Unread_triggered();
-    // Load item's book best comments and description
+    // Load item's book description
     void on_W_unread_list_itemClicked(QListWidgetItem *item);
     // Update status bar and log to file
     void on_IUNB_status_prepared(QString status);
@@ -197,7 +193,7 @@ private slots:
 
 // QVariant is too proud of himself to be really Variant
 // so this allows QVariant to contain shared_ptr
-// to struct with book's id, description and best comments
+// to struct with book's id and description
 Q_DECLARE_METATYPE(IUNB::pit_inf)
 Q_DECLARE_METATYPE(IUNB::pofstr)
 

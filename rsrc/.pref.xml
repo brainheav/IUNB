@@ -26,13 +26,9 @@ $Cookie
 		<start_page>1</start_page>
 	</unread>
 	<book_info>
-		<GET_descr>GET /element/$id/ HTTP/1.1
+		<GET>GET /element/$id/ HTTP/1.1
 Host: books.imhonet.ru
 
-</GET_descr>
-		<GET_comm>GET /element/$id/opinions/?sort_by=rating&flt_users=all HTTP/1.1
-Host: books.imhonet.ru
-
-</GET_comm>
+</GET>
 	</book_info>
 </pref>

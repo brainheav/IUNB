@@ -439,7 +439,7 @@ void IUNB::parse_for_unread(const std::string &src,
 
 } // !void IUNB::parse_for_unread(...)
 
-// Get book's description and best comments
+// Get book's description
 void IUNB::get_book_info(QListWidgetItem *item)
 {
     // Item_info inside item
@@ -448,120 +448,52 @@ void IUNB::get_book_info(QListWidgetItem *item)
     // Book id
     const std::string id = std::to_string(it_inf->id);
 
-    // Get description
+    emit status_prepared("Book info: Getting description");
+
+    // GET request
+    std::string get_req = xml_pref.get<std::string>("pref.book_info.GET");
+    // replace $id with id
+    boost::replace_first(get_req, "$id", id);
+
+    // Standart TCP socket
+    boost::asio::ip::tcp::socket socket(io_service);
+    // Query = imhonet.ru:80 if default.
+    boost::asio::ip::tcp::resolver::query query(
+                xml_pref.get<std::string>("pref.site.addr"),
+                xml_pref.get<std::string>("pref.site.port"));
+    // Connect to machine-like endpoint range
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::connect(socket,resolver.resolve(query));
+    // Send GET request
+    boost::asio::write(socket, boost::asio::buffer(get_req));
+
+    // Used in while (...) below
+    size_t offs(0), prev_offs(0), size(0), beg_search(0);
+
+    std::string buf;
     std::string descr;
-    std::future<void> descr_task(std::async(std::launch::async,
-                                            [this, &descr, &id]()
+    // Get reply and parse it
+    while (size=wait_for_reply(socket))
     {
-        //
-        emit status_prepared("Book info: Getting description");
+        // Resize if not enough
+        if (buf.size()-offs < size) buf.resize((buf.size()+size)*2);
+        // Get reply and save to string with offset - offs
+        boost::asio::read(socket,
+                          boost::asio::buffer(&buf[offs], size));
+        offs+=size;
 
-        // GET request
-        descr = xml_pref.get<std::string>("pref.book_info.GET_descr");
-        // replace $id with id
-        boost::replace_first(descr, "$id", id);
-
-        // Standart TCP socket
-        boost::asio::ip::tcp::socket socket(io_service);
-        // Query = imhonet.ru:80 if default.
-        boost::asio::ip::tcp::resolver::query query(
-                    xml_pref.get<std::string>("pref.site.addr"),
-                    xml_pref.get<std::string>("pref.site.port"));
-        // Connect to machine-like endpoint range
-        boost::asio::ip::tcp::resolver resolver(io_service);
-        boost::asio::connect(socket,resolver.resolve(query));
-        // Send GET request
-        boost::asio::write(socket, boost::asio::buffer(descr));
-
-        // Used in while (...) below
-        size_t offs(0), prev_offs(0), size(0), beg_search(0);
-        // Get reply and parse it
-        while (size=wait_for_reply(socket))
+        // Return true if description found
+        if (parse_for_descr(buf, descr,  beg_search))
         {
-            // Resize if not enough
-            if (descr.size()-offs < size) descr.resize((descr.size()+size)*2);
-            // Get reply and save to string with offset - offs
-            boost::asio::read(socket,
-                              boost::asio::buffer(&descr[offs], size));
-            offs+=size;
-
-            // Return true if description found
-            if (parse_for_descr(descr, beg_search))
-            {
-                break;
-            }
-            else
-            {
-                // Have I received any?
-                if (offs!=prev_offs)
-                {
-                    // 34 = strlen("data-content=\"Похожие книги\">")
-                    prev_offs=offs;
-                    beg_search=offs-34;
-                }
-                else // Descriprion is not found and never will be
-                {
-                    // So clear string
-                    // then this allow to reload description
-                    // because empty means never loaded before
-                    descr.clear();
-                    break;
-                }
-            }
-        }// !while (...)
-
-    })); // !Get description
-
-    // Get comments
-    std::string comm;
-    std::future<void> comm_task(std::async(std::launch::async,
-                                            [this, &comm, &id]()
-    {
-        std::string buf;
-        //
-        emit status_prepared("Book info: Getting comments");
-
-        // GET request
-        buf = xml_pref.get<std::string>("pref.book_info.GET_comm");
-        // replace $id with id
-        boost::replace_first(buf, "$id", id);
-
-        // Standart TCP socket
-        boost::asio::ip::tcp::socket socket(io_service);
-        // Query = imhonet.ru:80 if default.
-        boost::asio::ip::tcp::resolver::query query(
-                    xml_pref.get<std::string>("pref.site.addr"),
-                    xml_pref.get<std::string>("pref.site.port"));
-        // Connect to machine-like endpoint range
-        boost::asio::ip::tcp::resolver resolver(io_service);
-        boost::asio::connect(socket,resolver.resolve(query));
-        // Send GET request
-        boost::asio::write(socket, boost::asio::buffer(buf));
-
-        // Used in while (...) below
-        size_t offs(0), prev_offs(0), size(0);
-        // Get reply
-        while (size=wait_for_reply(socket))
-        {
-            // Resize if not enough
-            if (buf.size()-offs < size) buf.resize((buf.size()+size)*2);
-            // Get reply and save to string with offset - offs
-            boost::asio::read(socket,
-                              boost::asio::buffer(&buf[offs], size));
-            offs+=size;
-
-            // Have I received any?
-            if (offs!=prev_offs) prev_offs=offs;
-            else break;
+            break;
         }
+        // 34 = strlen("data-content=\"Похожие книги\">")
+        beg_search=offs-34;
 
-        // and parse it
-        parse_for_comm(buf, comm);
-
-    })); // !Get comments
-
-    // Waiting...
-    descr_task.wait(); comm_task.wait();
+        // Have I received any?
+        if (offs!=prev_offs) prev_offs=offs;
+        else break;
+    }// !while (...)
 
     //
     if (descr.size())
@@ -569,17 +501,12 @@ void IUNB::get_book_info(QListWidgetItem *item)
         descr+="<a href=\"http://books.imhonet.ru/element/";
         descr+=id;
         descr+="\">Посмотреть книгу на сайте</a>";
-        descr+=comm;
     }
     // Set item_info string
     it_inf->str = QString::fromUtf8(descr.c_str(), descr.size());
 
     // Display received
     emit book_info_updated(item);
-
-    // If description or a comments task have exception
-    // exception will be thrown and stored in tasks_list
-    descr_task.get(); comm_task.get();
 } // !void IUNB::get_book_info()
 
 // Run get_book_info() asynchronously
@@ -590,39 +517,40 @@ void IUNB::async_get_book_info(QListWidgetItem *item)
 } // !void IUNB::async_get_book_info()
 
 // Get book's description from reply
-bool IUNB::parse_for_descr(std::string &out_src, size_t beg_serch)
+bool IUNB::parse_for_descr(const std::string &src, std::string &out_src,
+                           size_t beg_serch)
 {
     // All the necessary information is found
-    auto end_pos = out_src
+    auto end_pos = src
             .find("data-content=\"Похожие книги\">",
                    beg_serch);
-    if (end_pos == out_src.npos) return false;
-    auto beg_pos = out_src.rfind("<span class=\"fn\">", end_pos);
-    if (beg_pos == out_src.npos) return false;
+    if (end_pos == src.npos) return false;
+    auto beg_pos = src.rfind("<span class=\"fn\">", end_pos);
+    if (beg_pos == src.npos) return false;
 
     //
     emit status_prepared("Book info: Parsing description");
 
     // Book name
-    std::string temp = "<center><h1>";
-    add_by_tag(out_src, temp, "<span class=\"fn\">", beg_pos, 0)
+    out_src = "<center><h1>";
+    add_by_tag(src, out_src, "<span class=\"fn\">", beg_pos, 0)
     += "</h1></center>";
 
     // Average rating
-    temp+="Оценка: ";
-    add_by_tag(out_src, temp, "<span class=\"average\">", beg_pos, 0)
+    out_src+="Оценка: ";
+    add_by_tag(src, out_src, "<span class=\"average\">", beg_pos, 0)
     += "<br>";
 
     // Votes
-    temp+="Проголосовавших: ";
-    add_by_tag(out_src, temp, "<span class=\"votes\">", beg_pos, 0)
+    out_src+="Проголосовавших: ";
+    add_by_tag(src, out_src, "<span class=\"votes\">", beg_pos, 0)
     += "<br>";
 
     // Description
-    add_by_tag(out_src, temp, "<p class=\"summary\">", beg_pos, 1)
+    add_by_tag(src, out_src, "<p class=\"summary\">", beg_pos, 1)
     += "<br>";
 
-    out_src = std::move(temp); return true;
+    return true;
 } // !bool IUNB::parse_for_descr(...)
 
 // Append to string html node with tag if "with" == true
@@ -678,44 +606,6 @@ std::string &IUNB::add_by_tag(const std::string &src, std::string &out_str,
     in_beg_pos = end_pos;
     return out_str;
 } // !std::string &IUNB::add_by_tag(...)
-
-// Get book's best comments from reply
-void IUNB::parse_for_comm(const std::string &src, std::string &out_str)
-{
-
-    auto comm_pos = src.find("<div class=\"m-comments-item-body\">");
-    auto beg_pos = comm_pos;
-    auto end_pos = comm_pos;
-
-    //
-    emit status_prepared("Book info: Parsing comments");
-
-    while (comm_pos != src.npos)
-    {
-        //
-        out_str+="<hr><hr>";
-        // Rating
-        beg_pos = src.find("<span class=\"m-comments-rating\">", beg_pos);
-        if (beg_pos == src.npos) beg_pos = comm_pos;
-        else
-        {
-            out_str+="Оценка: ";
-            while (!isdigit(src[++beg_pos])); end_pos = beg_pos;
-            while (isdigit(src[++end_pos]));
-            out_str.append(src, beg_pos, end_pos - beg_pos) += "<br>";
-        }
-
-        // Comment
-        out_str+="<blockquote>";
-        add_by_tag(src, out_str, "<div class=\"m-comments-content\"",
-                   beg_pos, 0) += "</blockquote>";
-
-
-
-        comm_pos = src.find("<div class=\"m-comments-item-body\">",
-                            beg_pos);
-    }
-} // !void IUNB::parse_for_comm(...)
 
 // !IUNB Private functions
 ///////////////////////////////////////////////////////////////////////////////
@@ -774,7 +664,7 @@ void IUNB::on_A_Get_Unread_triggered()
     async_get_unread();
 } // !void IUNB::on_A_Get_Unread_triggered()
 
-// Load old or new info about book
+// Load item's book description
 void IUNB::on_W_unread_list_itemClicked(QListWidgetItem *item)
 {
     // Item info inside item
