@@ -162,10 +162,11 @@ void IUNB::load_lists()
         list_file.close();
         list_file.clear();
 
-        // Create action and display
+        // Create action and associate with related list's file
         pQA = new QAction(list_name.c_str(), excl_lists);
         shp_ofstr.reset(new std::ofstream(list_filename, std::ios::app));
         pQA->setData(QVariant::fromValue(shp_ofstr));
+        // and display it
         ui->TB_main->addAction(pQA);
     }
 
@@ -710,6 +711,7 @@ void IUNB::add_exclude_book(QAction *action)
     auto sel_items = ui->W_unread_list->selectedItems();
 
     unsigned long long id;
+    static auto session = time(nullptr);
     // Add to related exclude list new book id and delete book from list widget
     for (QListWidgetItem * i : sel_items)
     {
@@ -717,6 +719,8 @@ void IUNB::add_exclude_book(QAction *action)
        *shp_ofstr << id
                   << ';'
                   << i->text().toStdString()
+                  << " @ "
+                  << session
                   << std::endl;
         new_excl_id.emplace(id);
         delete i;
