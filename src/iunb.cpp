@@ -23,16 +23,21 @@
 // This makes possible to change settings, cookie, etc without reload
 void IUNB::wait_for_tasks()
 {
-    //
-    emit status_prepared("General: Waiting until tasks finished, stand by");
 
-    // Display exception what() in status bar, if any
+    emit status_prepared(QString("General: Waiting for ")
+                         .append(QString::number(tasks_list.size()))
+                         .append(" tasks to finish"));
     while (tasks_list.size())
     {
         tasks_list.remove_if([this](std::future<void> &ref)
         {
             if (ref.wait_for(std::chrono::seconds(0))!=std::future_status::timeout)
             {
+
+                emit status_prepared(QString("General: Tasks remain: ")
+                                     .append(QString::number(tasks_list.size())));
+
+                // Display exception what() in status bar, if any
                 try
                 {
                     ref.get();
@@ -51,52 +56,47 @@ void IUNB::wait_for_tasks()
         });
     }
 
-    //
     emit status_prepared("General: Tasks finished");
 } // !void IUNB::wait_for_tasks()
 
 // Load settings or create default
 void IUNB::load_settings()
 {
-    //
+
     std::string xml_filename("./rsrc/");
     xml_filename += username + ".pref.xml";
-    //
+
     wait_for_tasks();
-    //
+
     emit status_prepared("XML: Loading");
-    //
+
     try
     {
         boost::property_tree::read_xml(xml_filename, xml_pref);
     }
     catch (boost::property_tree::xml_parser_error &)
     {
-        //
-        emit status_prepared("XML: File not found, create default ");
-        //
-        std::ifstream deffile("./rsrc/.pref.xml");
-        std::ofstream userfile(xml_filename);
-        userfile << deffile.rdbuf();
-        //
-        deffile.close(); userfile.close();
-        //
 
-        //
+        emit status_prepared("XML: File not found, create default ");
+
+        std::ofstream(xml_filename)
+                << std::ifstream("./rsrc/.pref.xml").rdbuf();
+
         emit status_prepared("XML: Default file created ");
+
         boost::property_tree::read_xml(xml_filename, xml_pref);
     }
-    //
+
     emit status_prepared("XML: Loaded");
 
-    // Load exclude lists
     load_lists();
 } // !void IUNB::load_settings()
 
 void IUNB::load_lists()
 {
-    //
+
     emit status_prepared("Exclude lists: Loading");
+
     // Load lists file
     std::string all_lists_filename("./rsrc/lists/");
     all_lists_filename+=username+".lists.txt";
@@ -105,20 +105,16 @@ void IUNB::load_lists()
     // Create default if this doesn't exist
     if (!all_lists_file.is_open())
     {
-        //
         emit status_prepared("Exclude lists: File not found, creating default");
-        //
+
         all_lists_file.close();
         all_lists_file.clear();
-        //
-        std::ifstream deffile("./rsrc/lists/.lists.txt");
-        std::ofstream userfile(all_lists_filename);
-        userfile << deffile.rdbuf();
-        //
-        deffile.close(); userfile.close();
-        //
+
+        std::ofstream(all_lists_filename)
+                << std::ifstream("./rsrc/lists/.lists.txt").rdbuf();
+
         all_lists_file.open(all_lists_filename);
-        //
+
         emit status_prepared("Exclude lists: Default file created");
     }
 
@@ -127,7 +123,7 @@ void IUNB::load_lists()
     excl_lists = new QActionGroup(this);
     connect(excl_lists, SIGNAL(triggered(QAction*)),
             this, SLOT(add_exclude_book(QAction*)));
-    // and clear old lists
+    // and clear old id sets
     excl_id.clear();
     new_excl_id.clear();
 
@@ -173,20 +169,15 @@ void IUNB::load_lists()
         ui->TB_main->addAction(pQA);
     }
 
-    //
     emit status_prepared("Exclude lists: Loaded");
 } // !void IUNB::load_lists()
 
 //Unload new exclude book's id
 void IUNB::unload_new_excl_id()
 {
-    //
     wait_for_tasks();
 
-    for (auto i : new_excl_id)
-    {
-        excl_id.emplace(i);
-    }
+    for (auto i : new_excl_id) excl_id.emplace(i);
 
     new_excl_id.clear();
 } // !void IUNB::unload_new_excl_id()
@@ -194,7 +185,6 @@ void IUNB::unload_new_excl_id()
 // Connect, send auth info, save parsed reply to cookie to be auth.
 void IUNB::authorize(const std::string &login, const std::string &password)
 {
-    //
     emit status_prepared("Authorize: Starting");
 
     // Get from XML POST request
@@ -212,7 +202,6 @@ void IUNB::authorize(const std::string &login, const std::string &password)
     // Add POST to GET
     get_req+=post_req;
 
-    //
     emit status_prepared("Authorize: Connecting");
 
     // Standart TCP socket
@@ -231,7 +220,6 @@ void IUNB::authorize(const std::string &login, const std::string &password)
     // Get reply from server with user id, user hash and phpsid
     boost::asio::read(socket, boost::asio::buffer(&reply[0], reply.size()));
 
-    //
     emit status_prepared("Authorize: Parsing reply");
 
     // Make cookie
@@ -246,10 +234,8 @@ void IUNB::authorize(const std::string &login, const std::string &password)
     add_cookie(new_cookie, reply,
                xml_pref.get<std::string>("pref.auth.PHPSID"));
 
-    //
     emit status_prepared("Authorize: Parsed");
 
-    //
     emit cookie_updated(QByteArray(new_cookie.c_str(), new_cookie.size()));
 } // !void IUNB::authorize(...)
 
@@ -303,7 +289,6 @@ void IUNB::add_cookie(std::string &out_str, const std::string &src,
 // Repeat until count(unread books) < num from xml settings
 void IUNB::get_unread()
 {
-    //
     emit status_prepared("Unread: Starting");
 
     // GET request without cookie and page_num yet
@@ -319,16 +304,10 @@ void IUNB::get_unread()
     if (pos!=get_req.npos)
         len=strlen("$pagenumber");
 
-    // Buffer for receiving from server
-    std::string buf;
-
     // Start searching from this page
     size_t page_num = xml_pref.get<size_t>("pref.unread.start_page");
     // Minimum desired number of unread books
     size_t num = xml_pref.get<size_t>("pref.unread.num");
-
-    // Used in for(...) below
-    size_t offs(0), prev_offs(0), size(0), beg_search(0);
 
     // Standart TCP socket
     boost::asio::ip::tcp::socket socket(io_service);
@@ -339,6 +318,12 @@ void IUNB::get_unread()
     // Connect to machine-like endpoint range
     boost::asio::ip::tcp::resolver resolver(io_service);
     boost::asio::connect(socket,resolver.resolve(query));
+
+    // Buffer for receiving from server
+    std::string buf;
+
+    // Used in for(...) below
+    size_t offs(0), prev_offs(0), size(0), beg_search(0);
 
     // count - unread books. num - desired.
     for (size_t count(0); count < num; )
@@ -353,7 +338,6 @@ void IUNB::get_unread()
             len=strlen(c_page_num);
         }
 
-        //
         emit status_prepared(QString("Unread: Page processing ")
                            .append(c_page_num));
 
@@ -394,13 +378,13 @@ void IUNB::parse_for_unread(const std::string &src,
                             size_t beg_search,
                             size_t &out_count)
 {
-    //
+
     auto beg_pos = src.npos;
     auto end_pos = src.npos;
-    //
+
     QListWidgetItem *item;
     std::shared_ptr<item_info> it_inf;
-    //
+
     unsigned long long id;
 
      for (  auto unread_book_pos = src.find("data-rate=\"\"", beg_search);
@@ -413,7 +397,7 @@ void IUNB::parse_for_unread(const std::string &src,
 
          // Get book id
          while (!isdigit(src[++beg_pos]));
-         id = strtoul(src.c_str()+beg_pos, 0, 10);
+         id = strtoul(src.c_str()+beg_pos, nullptr, 10);
 
          // Is this a book from exclude lists?
          if (excl_id.count(id)) continue;
@@ -495,7 +479,6 @@ void IUNB::get_book_info(QListWidgetItem *item)
         else break;
     }// !while (...)
 
-    //
     if (descr.size())
     {
         descr+="<a href=\"http://books.imhonet.ru/element/";
@@ -528,7 +511,6 @@ bool IUNB::parse_for_descr(const std::string &src, std::string &out_src,
     auto beg_pos = src.rfind("<span class=\"fn\">", end_pos);
     if (beg_pos == src.npos) return false;
 
-    //
     emit status_prepared("Book info: Parsing description");
 
     // Book name
@@ -596,13 +578,12 @@ std::string &IUNB::add_by_tag(const std::string &src, std::string &out_str,
         end_pos = src.find('>', end_pos);
         out_str.append(src, beg_pos, ++end_pos - beg_pos);
     }
-    // without
-    else
+    else // without
     {
         beg_pos = src.find('>', beg_pos);
         out_str.append(src, ++beg_pos, end_pos - beg_pos);
     }
-    //
+
     in_beg_pos = end_pos;
     return out_str;
 } // !std::string &IUNB::add_by_tag(...)
@@ -645,9 +626,9 @@ void IUNB::on_A_Authorize_triggered()
     log_pass lp(this); lp.exec();
     username             = lp.ui->Login->text().toStdString();
     std::string password = lp.ui->Password->text().toStdString();
-    //
+
     load_settings();
-    //
+
     async_authorize(username, password);
 }// !void IUNB::on_A_Authorize_triggered()
 
@@ -658,9 +639,9 @@ void IUNB::on_A_Get_Unread_triggered()
     if (xml_pref.empty()) load_settings();
     // Unload new exclude book's id, if any
     if (new_excl_id.size()) unload_new_excl_id();
-    //
+
     ui->W_unread_list->clear();
-    //
+
     async_get_unread();
 } // !void IUNB::on_A_Get_Unread_triggered()
 
@@ -682,35 +663,29 @@ void IUNB::on_W_unread_list_itemClicked(QListWidgetItem *item)
     }
 } // !void IUNB::on_W_unread_list_itemClicked(...)
 
-
 // Show message in status bar and write to log
 void IUNB::on_IUNB_status_prepared(QString status)
 {
-    //
     static std::ofstream log("./rsrc/iunb.txt", std::ios::app);
     log << status.toStdString() << std::endl;
-    //
+
     ui->SB_status->showMessage(status);
 } // !void IUNB::on_IUNB_status_prepared(...)
 
 // Add book to list widget
 void IUNB::on_IUNB_book_found(QListWidgetItem *item)
 {
-    //
     ui->W_unread_list->addItem(item);
 } // !void IUNB::on_IUNB_book_found(...)
 
 // Update cookie
 void IUNB::on_IUNB_cookie_updated(QByteArray new_cookie)
 {
-    //
     emit status_prepared("Cookie: Updating");
 
-    //
     wait_for_tasks();
     cookie = new_cookie.data();
 
-    //
     emit status_prepared("Cookie: Updated");
 } // !void IUNB::on_IUNB_cookie_updated(...)
 
@@ -733,7 +708,7 @@ void IUNB::add_exclude_book(QAction *action)
     pofstr shp_ofstr = action->data().value<pofstr>();
     // List with selected items, if any
     auto sel_items = ui->W_unread_list->selectedItems();
-    //
+
     unsigned long long id;
     // Add to related exclude list new book id and delete book from list widget
     for (QListWidgetItem * i : sel_items)

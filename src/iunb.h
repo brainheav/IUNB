@@ -20,8 +20,7 @@
 
 // Holds exception from worker threads in list<future<void>>
 #include <future>
-// QListWidgetItem has QVariant with shared_ptr
-// that contains some info about book
+// I use shared_ptr in QVariant to eliminate duplication
 #include <memory>
 // Load\save settings, lists, etc.
 #include <fstream>
@@ -94,7 +93,6 @@ private:
     // Actions related to exclude lists
     QActionGroup * excl_lists;
 
-    //
     Ui::IUNB *ui;
 
 private:
@@ -157,9 +155,9 @@ private:
                                    std::string o_tag, size_t &in_beg_pos,
                                    bool with);
 public:
-    //
+
     explicit IUNB(QWidget *parent = 0);
-    //
+
     ~IUNB();
 
 signals:
